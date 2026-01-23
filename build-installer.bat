@@ -1,14 +1,14 @@
 @echo off
-REM ═══════════════════════════════════════════════════════════
+REM ============================================================
 REM   KeyRecorder Installer Build Script
 REM   Builds the complete installer: KeyRecorderSetup.exe
-REM ═══════════════════════════════════════════════════════════
+REM ============================================================
 
 echo.
-echo ╔═══════════════════════════════════════════════════════════╗
-echo ║           KeyRecorder Installer Build Script             ║
-echo ║         Building KeyRecorderSetup.exe installer...        ║
-echo ╚═══════════════════════════════════════════════════════════╝
+echo ============================================================
+echo           KeyRecorder Installer Build Script
+echo         Building KeyRecorderSetup.exe installer...
+echo ============================================================
 echo.
 
 REM Check if running from correct directory
@@ -79,9 +79,9 @@ if %ERRORLEVEL% neq 0 (
 
 REM Success!
 echo.
-echo ╔═══════════════════════════════════════════════════════════╗
-echo ║              ✓ Build Completed Successfully!              ║
-echo ╚═══════════════════════════════════════════════════════════╝
+echo ============================================================
+echo              BUILD COMPLETED SUCCESSFULLY!
+echo ============================================================
 echo.
 echo Installer created: Installer\KeyRecorderSetup.exe
 echo.
