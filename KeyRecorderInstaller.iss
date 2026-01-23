@@ -25,16 +25,17 @@ AllowNoIcons=yes
 LicenseFile=LICENSE
 OutputDir=Installer
 OutputBaseFilename=KeyRecorderSetup
-SetupIconFile=KeyRecorder.UI\Assets\logo.png
+; SetupIconFile requires .ico format - commented out for now
+; SetupIconFile=KeyRecorder.UI\Assets\logo.png
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
-; Visual Appearance
-WizardImageFile=installer-banner.bmp
-WizardSmallImageFile=installer-icon.bmp
+; Visual Appearance - Optional custom images commented out
+; WizardImageFile=installer-banner.bmp
+; WizardSmallImageFile=installer-icon.bmp
 
 ; Version Info
 VersionInfoVersion={#MyAppVersion}
