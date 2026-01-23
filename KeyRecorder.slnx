@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="KeyRecorder.Core/KeyRecorder.Core.csproj" />
+  <Project Path="KeyRecorder.Service/KeyRecorder.Service.csproj" />
+  <Project Path="KeyRecorder.UI/KeyRecorder.UI.csproj" />
+</Solution>

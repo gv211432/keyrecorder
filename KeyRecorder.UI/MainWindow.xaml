@@ -1,0 +1,168 @@
+﻿<Window x:Class="KeyRecorder.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:KeyRecorder.UI"
+        mc:Ignorable="d"
+        Title="KeyRecorder - Keyboard Activity Monitor" Height="600" Width="1000"
+        WindowStartupLocation="CenterScreen"
+        Icon="/Assets/logo.png">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header / Controls -->
+        <Border Grid.Row="0" Background="#0d0f10" Padding="10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Logo -->
+                <Image Grid.Column="0" Source="/Assets/logo.png" Width="48" Height="48" Margin="0,0,15,0" VerticalAlignment="Center"/>
+
+                <!-- Status Text -->
+                <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center">
+                    <TextBlock Text="KeyRecorder" FontSize="18" FontWeight="Bold" Foreground="#0085d8" Margin="0,0,0,2"/>
+                    <TextBlock x:Name="StatusText" Text="Status: Connecting..." FontSize="12" Foreground="#eeeff1"/>
+                </StackPanel>
+
+                <!-- Control Buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button x:Name="AboutButton" Content="About" Width="80" Height="32" Margin="5,5,0,5"
+                            Background="Transparent" Foreground="#eeeff1" BorderThickness="1" BorderBrush="#444"
+                            FontWeight="SemiBold" Click="AboutButton_Click">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="4" Padding="10,5">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#222"/>
+                                        <Setter Property="BorderBrush" Value="#0085d8"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button x:Name="PauseResumeButton" Content="Pause" Width="100" Height="32" Margin="5"
+                            Background="#0085d8" Foreground="White" BorderThickness="0"
+                            FontWeight="SemiBold" Click="PauseResumeButton_Click">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#0085d8"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    CornerRadius="4" Padding="10,5">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#0096ed"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                    <Button x:Name="RefreshButton" Content="Refresh" Width="100" Height="32" Margin="5"
+                            Background="#eeeff1" Foreground="#0d0f10" BorderThickness="0"
+                            FontWeight="SemiBold" Click="RefreshButton_Click">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#eeeff1"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    CornerRadius="4" Padding="10,5">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="White"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Statistics Bar -->
+        <Border Grid.Row="1" Background="#eeeff1" Padding="12" BorderBrush="#d0d0d0" BorderThickness="0,1">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Total Keystrokes: " Foreground="#0d0f10" FontWeight="SemiBold" FontSize="13"/>
+                <TextBlock x:Name="TotalKeystrokesText" Text="0" Foreground="#0085d8" FontWeight="Bold" FontSize="13" Margin="0,0,20,0"/>
+                <TextBlock Text="Last Sync: " Foreground="#0d0f10" FontWeight="SemiBold" FontSize="13"/>
+                <TextBlock x:Name="LastSyncText" Text="N/A" Foreground="#0085d8" FontWeight="Bold" FontSize="13" Margin="0,0,20,0"/>
+                <TextBlock Text="Recording: " Foreground="#0d0f10" FontWeight="SemiBold" FontSize="13"/>
+                <TextBlock x:Name="RecordingStatusText" Text="Unknown" Foreground="#e61f47" FontWeight="Bold" FontSize="13"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Keystroke Display Area -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Background="White">
+            <ItemsControl x:Name="KeystrokeTimeline" Margin="15">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="#e0e0e0" BorderThickness="0,0,0,1" Padding="12,8" Background="White">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#f8f9fa"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="{Binding TimeLabel}"
+                                           FontWeight="Bold" FontSize="13" Foreground="#0085d8" VerticalAlignment="Top"/>
+
+                                <TextBlock Grid.Column="1" Text="{Binding KeystrokesText}"
+                                           TextWrapping="Wrap" FontSize="13" Foreground="#0d0f10" LineHeight="20"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="3" Background="#0d0f10" Padding="8" BorderBrush="#0085d8" BorderThickness="0,2,0,0">
+            <TextBlock x:Name="StatusBarText" Text="Ready" FontSize="11" Foreground="#eeeff1"/>
+        </Border>
+    </Grid>
+</Window>
