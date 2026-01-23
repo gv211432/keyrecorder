@@ -41,8 +41,14 @@ public class IpcServer : IDisposable
             try
             {
                 var pipeSecurity = new PipeSecurity();
-                var identity = new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null);
-                pipeSecurity.AddAccessRule(new PipeAccessRule(identity, PipeAccessRights.ReadWrite, AccessControlType.Allow));
+
+                // Allow Everyone to access the pipe
+                var everyoneSid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+                pipeSecurity.AddAccessRule(new PipeAccessRule(everyoneSid, PipeAccessRights.ReadWrite, AccessControlType.Allow));
+
+                // Allow LocalSystem (service account)
+                var localSystemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+                pipeSecurity.AddAccessRule(new PipeAccessRule(localSystemSid, PipeAccessRights.FullControl, AccessControlType.Allow));
 
                 using var server = NamedPipeServerStreamAcl.Create(
                     PipeName,

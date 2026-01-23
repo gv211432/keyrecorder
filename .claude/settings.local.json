@@ -7,7 +7,15 @@
       "Bash(dotnet build:*)",
       "Bash(powershell -Command:*)",
       "Bash(git add:*)",
-      "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" KeyRecorderInstaller.iss)"
+      "Bash(\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup 6\\\\ISCC.exe\" KeyRecorderInstaller.iss)",
+      "Bash(dotnet --list-runtimes:*)",
+      "Bash(sc query:*)",
+      "Bash(wevtutil qe:*)",
+      "Bash(sc qc:*)",
+      "Bash(sc start \"KeyRecorder Service\")",
+      "Bash(ls:*)",
+      "Bash(timeout:*)",
+      "Bash(certutil -hashfile:*)"
     ]
   }
 }

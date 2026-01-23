@@ -43,27 +43,101 @@ public partial class MainWindow : Window
             _databaseManager = new DatabaseManager(databasePath);
             await _databaseManager.InitializeAsync();
 
+            await ConnectToServiceAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error initializing: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async Task<bool> ConnectToServiceAsync()
+    {
+        try
+        {
+            // Check if service is installed
+            if (!ServiceManager.IsServiceInstalled())
+            {
+                StatusText.Text = "Status: Service Not Installed";
+                StatusBarText.Text = "KeyRecorder Service is not installed";
+                var result = MessageBox.Show(
+                    "KeyRecorder Service is not installed.\n\nPlease run the KeyRecorder installer to install the service.",
+                    "Service Not Installed",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                return false;
+            }
+
+            // Check if service is running
+            if (!ServiceManager.IsServiceRunning())
+            {
+                StatusText.Text = "Status: Service Stopped";
+                StatusBarText.Text = "Attempting to start KeyRecorder Service...";
+
+                var result = MessageBox.Show(
+                    "KeyRecorder Service is not running.\n\nWould you like to start it now?\n\n(You may be prompted for administrator privileges)",
+                    "Service Not Running",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    var (success, message) = ServiceManager.TryStartService();
+                    if (!success)
+                    {
+                        StatusText.Text = "Status: Failed to Start Service";
+                        StatusBarText.Text = message;
+                        MessageBox.Show(message, "Service Start Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return false;
+                    }
+
+                    // Wait a moment for service to fully initialize
+                    await Task.Delay(1000);
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+            // Try to connect via IPC
             _ipcClient = new IpcClient();
             var connected = await _ipcClient.ConnectAsync();
 
             if (connected)
             {
-                StatusText.Text = "Status: Connected to Service";
+                StatusText.Text = "Status: Connected";
                 StatusBarText.Text = "Connected to KeyRecorder Service";
                 _refreshTimer.Start();
                 await LoadRecentKeystrokesAsync();
+                return true;
             }
             else
             {
-                StatusText.Text = "Status: Service Not Running";
-                StatusBarText.Text = "Unable to connect to service. Please ensure the service is running.";
-                MessageBox.Show("Unable to connect to KeyRecorder service. Please ensure the service is running.",
-                    "Connection Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                StatusText.Text = "Status: Connection Failed";
+                StatusBarText.Text = "Unable to connect to service";
+
+                var retryResult = MessageBox.Show(
+                    "Unable to connect to KeyRecorder service via IPC.\n\nThe service may be starting up. Would you like to retry?",
+                    "Connection Error",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (retryResult == MessageBoxResult.Yes)
+                {
+                    await Task.Delay(2000);
+                    return await ConnectToServiceAsync();
+                }
+
+                return false;
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error initializing: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusText.Text = "Status: Error";
+            StatusBarText.Text = $"Error: {ex.Message}";
+            MessageBox.Show($"Error connecting to service: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return false;
         }
     }
 

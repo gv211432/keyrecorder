@@ -32,6 +32,9 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
 UninstallDisplayIcon={app}\{#MyAppExeName}
+; Architecture Support - Install to 64-bit Program Files on 64-bit Windows
+ArchitecturesInstallIn64BitMode=x64compatible
+ArchitecturesAllowed=x64compatible
 
 ; Visual Appearance - Optional custom images commented out
 ; WizardImageFile=installer-banner.bmp
@@ -71,12 +74,14 @@ Source: "KeyRecorder.Service\bin\Release\net10.0\*.dll"; DestDir: "{app}"; Flags
 Source: "KeyRecorder.Service\bin\Release\net10.0\*.json"; DestDir: "{app}"; Flags: ignoreversion confirmoverwrite; Components: service
 Source: "KeyRecorder.Service\bin\Release\net10.0\*.deps.json"; DestDir: "{app}"; Flags: ignoreversion; Components: service
 Source: "KeyRecorder.Service\bin\Release\net10.0\*.runtimeconfig.json"; DestDir: "{app}"; Flags: ignoreversion; Components: service
+Source: "KeyRecorder.Service\bin\Release\net10.0\runtimes\*"; DestDir: "{app}\runtimes"; Flags: ignoreversion recursesubdirs; Components: service
 
 ; WPF UI Application
 Source: "KeyRecorder.UI\bin\Release\net10.0-windows\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Components: ui
 Source: "KeyRecorder.UI\bin\Release\net10.0-windows\*.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist; Components: ui
 Source: "KeyRecorder.UI\bin\Release\net10.0-windows\*.deps.json"; DestDir: "{app}"; Flags: ignoreversion; Components: ui
 Source: "KeyRecorder.UI\bin\Release\net10.0-windows\*.runtimeconfig.json"; DestDir: "{app}"; Flags: ignoreversion; Components: ui
+Source: "KeyRecorder.UI\bin\Release\net10.0-windows\runtimes\*"; DestDir: "{app}\runtimes"; Flags: ignoreversion recursesubdirs; Components: ui
 
 ; Documentation
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion; Components: docs
@@ -180,17 +185,23 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
+  DotNetPath: String;
 begin
   Result := '';
 
-  // Check if .NET 10 Runtime is installed
-  if not RegKeyExists(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedhost') then
+  // Check if .NET 10 Runtime is installed by looking for dotnet.exe
+  DotNetPath := ExpandConstant('{pf}\dotnet\dotnet.exe');
+  if not FileExists(DotNetPath) then
   begin
-    Result := 'Microsoft .NET 10 Runtime is not installed.' + #13#10 + #13#10 +
-              'Please download and install .NET 10 Runtime from:' + #13#10 +
-              'https://dotnet.microsoft.com/download/dotnet/10.0' + #13#10 + #13#10 +
-              'Then run this installer again.';
-    Exit;
+    DotNetPath := ExpandConstant('{pf64}\dotnet\dotnet.exe');
+    if not FileExists(DotNetPath) then
+    begin
+      Result := 'Microsoft .NET 10 Runtime is not installed.' + #13#10 + #13#10 +
+                'Please download and install .NET 10 Runtime from:' + #13#10 +
+                'https://dotnet.microsoft.com/download/dotnet/10.0' + #13#10 + #13#10 +
+                'Then run this installer again.';
+      Exit;
+    end;
   end;
 
   // Stop existing service if running
