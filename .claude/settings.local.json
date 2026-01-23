@@ -4,7 +4,9 @@
       "Bash(dotnet new:*)",
       "Bash(dotnet sln:*)",
       "Bash(dotnet add package:*)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(git add:*)"
     ]
   }
 }
