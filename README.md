@@ -261,7 +261,17 @@ To create the installer package:
 .\build-installer.bat
 ```
 
-Output: `Installer\KeyRecorderSetup.exe`
+**Requirements:**
+- [Inno Setup 6.x](https://jrsoftware.org/isdl.php) - The build script can download and install this automatically if not found
+- .NET 10 SDK
+
+**Output:** `Installer\KeyRecorderSetup.exe`
+
+The build script will automatically:
+- Detect if Inno Setup is installed
+- Offer to download and install Inno Setup if not found
+- Build all projects in Release mode
+- Create the installer package
 
 See [BUILD_INSTALLER.md](BUILD_INSTALLER.md) for detailed instructions.
 

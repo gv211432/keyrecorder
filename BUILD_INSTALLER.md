@@ -6,10 +6,27 @@ This guide explains how to create the `KeyRecorderSetup.exe` installer.
 
 ### 1. Install Inno Setup
 
-**Download and install Inno Setup 6.x:**
+**Automatic Installation (Recommended):**
+
+The build script will automatically detect if Inno Setup is installed. If not found, it will offer to download and install it for you.
+
+**Manual Installation:**
+
+If you prefer to install manually:
 - Website: https://jrsoftware.org/isinfo.php
 - Direct Download: https://jrsoftware.org/download.php/is.exe
-- Install to default location: `C:\Program Files (x86)\Inno Setup 6`
+- Alternative Download: https://jrsoftware.org/isdl.php
+- Install to default location: `C:\Program Files (x86)\Inno Setup 6` or `C:\Program Files\Inno Setup 6`
+
+**Supported Versions:**
+- Inno Setup 6.x (Recommended)
+- Inno Setup 5.x (Also supported)
+
+**Supported Installation Locations:**
+- `C:\Program Files (x86)\Inno Setup 6\ISCC.exe` (Most common)
+- `C:\Program Files\Inno Setup 6\ISCC.exe`
+- `C:\Program Files (x86)\Inno Setup 5\ISCC.exe`
+- `C:\Program Files\Inno Setup 5\ISCC.exe`
 
 ### 2. Verify .NET 10 SDK
 
@@ -30,9 +47,22 @@ Simply run the provided batch script:
 ```
 
 This will:
-1. Build all projects in Release mode
-2. Compile the Inno Setup script
-3. Create `KeyRecorderSetup.exe` in the `Installer` folder
+1. Check if Inno Setup is installed (if not, offer to download and install it)
+2. Clean previous builds
+3. Build all projects in Release mode
+4. Verify build outputs
+5. Compile the Inno Setup script
+6. Create `KeyRecorderSetup.exe` in the `Installer` folder
+
+**If Inno Setup is not installed:**
+- The script will detect this and offer three options:
+  1. **Automatic installation** - Downloads and installs Inno Setup for you (Recommended)
+  2. **Manual installation** - Opens the download page in your browser
+  3. **Cancel** - Exits the build process
+
+**Automatic Installation Options:**
+- **Silent installation** - Installs with default settings, no user interaction
+- **GUI installation** - Shows the installation wizard (recommended for first-time users)
 
 ### Option 2: Manual Build
 
