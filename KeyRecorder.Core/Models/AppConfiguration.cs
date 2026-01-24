@@ -6,7 +6,7 @@ public class AppConfiguration
         Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
         "KeyRecorder");
 
-    public int SyncIntervalMinutes { get; set; } = 5;
+    public int SyncIntervalMinutes { get; set; } = 1;
     public int IntegrityCheckIntervalMinutes { get; set; } = 60;
     public int SnapshotIntervalMinutes { get; set; } = 60;
     public int MaxSnapshotsToKeep { get; set; } = 24;

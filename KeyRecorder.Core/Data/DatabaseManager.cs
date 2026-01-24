@@ -174,7 +174,20 @@ public class DatabaseManager : IDisposable
 
     public async Task<List<KeystrokeEvent>> GetRecentKeystrokesAsync(int limit = 1000)
     {
-        return await _mainDb.GetKeystrokesAsync(limit: limit);
+        // Get keystrokes from both hot DB (unsynced) and main DB
+        var hotKeystrokes = await _hotDb.GetAllKeystrokesAsync(limit);
+        var mainKeystrokes = await _mainDb.GetKeystrokesAsync(limit: limit);
+
+        // Merge and deduplicate by SequenceId (or Timestamp if SequenceId not set)
+        var combined = hotKeystrokes
+            .Concat(mainKeystrokes)
+            .GroupBy(k => k.SequenceId > 0 ? k.SequenceId : k.Timestamp.Ticks)
+            .Select(g => g.First())
+            .OrderByDescending(k => k.Timestamp)
+            .Take(limit)
+            .ToList();
+
+        return combined;
     }
 
     public async Task<List<KeystrokeEvent>> GetKeystrokesByTimeRangeAsync(DateTime startTime, DateTime endTime)
@@ -184,7 +197,10 @@ public class DatabaseManager : IDisposable
 
     public async Task<long> GetKeystrokeCountAsync()
     {
-        return await _mainDb.GetKeystrokeCountAsync();
+        // Sum counts from both hot DB (unsynced) and main DB
+        var hotCount = await _hotDb.GetKeystrokeCountAsync();
+        var mainCount = await _mainDb.GetKeystrokeCountAsync();
+        return hotCount + mainCount;
     }
 
     public void Dispose()

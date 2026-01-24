@@ -1,7 +1,7 @@
 <Window x:Class="KeyRecorder.UI.AboutWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="About KeyRecorder" Height="480" Width="500"
+        Title="About KeyRecorder" Height="540" Width="500"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="White">

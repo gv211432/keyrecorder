@@ -71,4 +71,37 @@ public class HotDatabase : BaseDatabase
         command.CommandText = "DELETE FROM KeystrokeEvents WHERE IsSynced = 1";
         await command.ExecuteNonQueryAsync();
     }
+
+    public async Task<List<KeystrokeEvent>> GetAllKeystrokesAsync(int limit = 500)
+    {
+        if (_connection == null)
+            throw new InvalidOperationException("Database not initialized");
+
+        var keystrokes = new List<KeystrokeEvent>();
+        await using var command = _connection.CreateCommand();
+        command.CommandText = @"
+            SELECT * FROM KeystrokeEvents
+            ORDER BY Timestamp DESC
+            LIMIT @Limit";
+        command.Parameters.AddWithValue("@Limit", limit);
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            keystrokes.Add(MapReaderToKeystroke(reader));
+        }
+
+        return keystrokes;
+    }
+
+    public async Task<long> GetKeystrokeCountAsync()
+    {
+        if (_connection == null)
+            throw new InvalidOperationException("Database not initialized");
+
+        await using var command = _connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM KeystrokeEvents";
+        var result = await command.ExecuteScalarAsync();
+        return result != null ? Convert.ToInt64(result) : 0;
+    }
 }
