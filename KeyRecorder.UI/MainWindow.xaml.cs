@@ -1,10 +1,13 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
+using System.Drawing;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
 using KeyRecorder.Core.IPC;
 using KeyRecorder.Core.Data;
 using KeyRecorder.Core.Models;
+using KeyRecorder.Core.Capture;
+using Forms = System.Windows.Forms;
 
 namespace KeyRecorder.UI;
 
@@ -12,9 +15,12 @@ public partial class MainWindow : Window
 {
     private IpcClient? _ipcClient;
     private DatabaseManager? _databaseManager;
+    private KeyboardHook? _keyboardHook;
     private readonly DispatcherTimer _refreshTimer;
     private readonly ObservableCollection<TimelineEntry> _timelineEntries;
     private bool _isRecording;
+    private Forms.NotifyIcon? _notifyIcon;
+    private bool _isExiting;
 
     public MainWindow()
     {
@@ -31,6 +37,97 @@ public partial class MainWindow : Window
 
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
+        StateChanged += MainWindow_StateChanged;
+
+        InitializeNotifyIcon();
+    }
+
+    private void InitializeNotifyIcon()
+    {
+        _notifyIcon = new Forms.NotifyIcon
+        {
+            Text = "KeyRecorder - Keyboard Activity Monitor",
+            Visible = true
+        };
+
+        // Load icon from resources
+        try
+        {
+            var iconUri = new Uri("pack://application:,,,/Assets/logo.png");
+            var streamInfo = System.Windows.Application.GetResourceStream(iconUri);
+            if (streamInfo != null)
+            {
+                using var bitmap = new Bitmap(streamInfo.Stream);
+                _notifyIcon.Icon = System.Drawing.Icon.FromHandle(bitmap.GetHicon());
+            }
+        }
+        catch
+        {
+            // Fallback to default icon
+            _notifyIcon.Icon = SystemIcons.Application;
+        }
+
+        // Create context menu
+        var contextMenu = new Forms.ContextMenuStrip();
+
+        var showItem = new Forms.ToolStripMenuItem("Show Window");
+        showItem.Click += (s, e) => ShowWindow();
+        contextMenu.Items.Add(showItem);
+
+        var pauseItem = new Forms.ToolStripMenuItem("Pause Recording");
+        pauseItem.Click += (s, e) => ToggleRecording();
+        contextMenu.Items.Add(pauseItem);
+
+        contextMenu.Items.Add(new Forms.ToolStripSeparator());
+
+        var exitItem = new Forms.ToolStripMenuItem("Exit");
+        exitItem.Click += (s, e) => ExitApplication();
+        contextMenu.Items.Add(exitItem);
+
+        _notifyIcon.ContextMenuStrip = contextMenu;
+        _notifyIcon.DoubleClick += (s, e) => ShowWindow();
+
+        // Update context menu when opening
+        contextMenu.Opening += (s, e) =>
+        {
+            pauseItem.Text = _isRecording ? "Pause Recording" : "Resume Recording";
+        };
+    }
+
+    private void ShowWindow()
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    private void ToggleRecording()
+    {
+        Dispatcher.Invoke(() => PauseResumeButton_Click(this, new RoutedEventArgs()));
+    }
+
+    private void ExitApplication()
+    {
+        _isExiting = true;
+        Close();
+    }
+
+    private void MainWindow_StateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState == WindowState.Minimized)
+        {
+            Hide();
+            UpdateTrayIconText();
+        }
+    }
+
+    private void UpdateTrayIconText()
+    {
+        if (_notifyIcon != null)
+        {
+            var status = _isRecording ? "Recording" : "Paused";
+            _notifyIcon.Text = $"KeyRecorder - {status}";
+        }
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -44,11 +141,61 @@ public partial class MainWindow : Window
             _databaseManager = new DatabaseManager(databasePath);
             await _databaseManager.InitializeAsync();
 
+            // Initialize keyboard hook in the UI (user session)
+            _keyboardHook = new KeyboardHook();
+            _keyboardHook.KeystrokeCaptured += OnKeystrokeCaptured;
+
             await ConnectToServiceAsync();
+
+            // Start keyboard capture
+            _keyboardHook.Start();
+            _isRecording = true;
+            PauseResumeButton.Content = "Pause";
+            UpdateTrayIconText();
+
+            // Check if we should start minimized (e.g., from Windows startup)
+            if (App.StartMinimized)
+            {
+                WindowState = WindowState.Minimized;
+            }
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error initializing: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show($"Error initializing: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void OnKeystrokeCaptured(object? sender, KeystrokeEvent e)
+    {
+        try
+        {
+            // Record locally
+            if (_databaseManager != null)
+            {
+                await _databaseManager.RecordKeystrokeAsync(e);
+            }
+
+            // Also notify service (optional - for redundancy)
+            if (_ipcClient != null)
+            {
+                try
+                {
+                    var message = new IpcMessage
+                    {
+                        Type = IpcMessageType.KeystrokeNotification,
+                        Payload = JsonSerializer.Serialize(e)
+                    };
+                    await _ipcClient.SendMessageAsync(message);
+                }
+                catch
+                {
+                    // Ignore IPC errors - local storage is primary
+                }
+            }
+        }
+        catch
+        {
+            // Ignore recording errors to not disrupt capture
         }
     }
 
@@ -60,12 +207,9 @@ public partial class MainWindow : Window
             if (!ServiceManager.IsServiceInstalled())
             {
                 StatusText.Text = "Status: Service Not Installed";
-                StatusBarText.Text = "KeyRecorder Service is not installed";
-                var result = MessageBox.Show(
-                    "KeyRecorder Service is not installed.\n\nPlease run the KeyRecorder installer to install the service.",
-                    "Service Not Installed",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                StatusBarText.Text = "Recording locally (service not installed)";
+                _refreshTimer.Start();
+                await LoadRecentKeystrokesAsync();
                 return false;
             }
 
@@ -73,32 +217,19 @@ public partial class MainWindow : Window
             if (!ServiceManager.IsServiceRunning())
             {
                 StatusText.Text = "Status: Service Stopped";
-                StatusBarText.Text = "Attempting to start KeyRecorder Service...";
+                StatusBarText.Text = "Recording locally (starting service...)";
 
-                var result = MessageBox.Show(
-                    "KeyRecorder Service is not running.\n\nWould you like to start it now?\n\n(You may be prompted for administrator privileges)",
-                    "Service Not Running",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
+                var (success, message) = ServiceManager.TryStartService();
+                if (!success)
                 {
-                    var (success, message) = ServiceManager.TryStartService();
-                    if (!success)
-                    {
-                        StatusText.Text = "Status: Failed to Start Service";
-                        StatusBarText.Text = message;
-                        MessageBox.Show(message, "Service Start Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return false;
-                    }
-
-                    // Wait a moment for service to fully initialize
-                    await Task.Delay(1000);
-                }
-                else
-                {
+                    StatusText.Text = "Status: Service Stopped";
+                    StatusBarText.Text = "Recording locally (service failed to start)";
+                    _refreshTimer.Start();
+                    await LoadRecentKeystrokesAsync();
                     return false;
                 }
+
+                await Task.Delay(1000);
             }
 
             // Try to connect via IPC
@@ -110,77 +241,51 @@ public partial class MainWindow : Window
                 StatusText.Text = "Status: Connected";
                 StatusBarText.Text = "Connected to KeyRecorder Service";
 
-                // Query initial recording state
-                await QueryRecordingStateAsync();
-
                 _refreshTimer.Start();
                 await LoadRecentKeystrokesAsync();
                 return true;
             }
             else
             {
-                StatusText.Text = "Status: Connection Failed";
-                StatusBarText.Text = "Unable to connect to service";
-
-                var retryResult = MessageBox.Show(
-                    "Unable to connect to KeyRecorder service via IPC.\n\nThe service may be starting up. Would you like to retry?",
-                    "Connection Error",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Warning);
-
-                if (retryResult == MessageBoxResult.Yes)
-                {
-                    await Task.Delay(2000);
-                    return await ConnectToServiceAsync();
-                }
-
+                StatusText.Text = "Status: Recording Locally";
+                StatusBarText.Text = "Recording locally (service connection failed)";
+                _refreshTimer.Start();
+                await LoadRecentKeystrokesAsync();
                 return false;
             }
         }
         catch (Exception ex)
         {
-            StatusText.Text = "Status: Error";
-            StatusBarText.Text = $"Error: {ex.Message}";
-            MessageBox.Show($"Error connecting to service: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusText.Text = "Status: Recording Locally";
+            StatusBarText.Text = $"Recording locally: {ex.Message}";
+            _refreshTimer.Start();
+            await LoadRecentKeystrokesAsync();
             return false;
         }
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        if (!_isExiting)
+        {
+            // Minimize to tray instead of closing
+            e.Cancel = true;
+            WindowState = WindowState.Minimized;
+            return;
+        }
+
+        // Actually closing - cleanup
         _refreshTimer?.Stop();
+        _keyboardHook?.Stop();
+        _keyboardHook?.Dispose();
         _ipcClient?.Dispose();
         _databaseManager?.Dispose();
+        _notifyIcon?.Dispose();
     }
 
     private async void RefreshTimer_Tick(object? sender, EventArgs e)
     {
         await LoadRecentKeystrokesAsync();
-    }
-
-    private async Task QueryRecordingStateAsync()
-    {
-        try
-        {
-            if (_ipcClient == null) return;
-
-            var statusMessage = new IpcMessage { Type = IpcMessageType.GetStatus };
-            var response = await _ipcClient.SendMessageAndWaitForResponseAsync(statusMessage);
-
-            if (response?.Type == IpcMessageType.GetStatusResponse && !string.IsNullOrEmpty(response.Payload))
-            {
-                var status = JsonSerializer.Deserialize<StatusResponse>(response.Payload);
-                if (status != null)
-                {
-                    _isRecording = status.IsRecording;
-                    PauseResumeButton.Content = _isRecording ? "Pause" : "Resume";
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            StatusBarText.Text = $"Error querying status: {ex.Message}";
-        }
     }
 
     private async Task LoadRecentKeystrokesAsync()
@@ -254,28 +359,55 @@ public partial class MainWindow : Window
     {
         try
         {
-            if (_ipcClient == null) return;
-
             if (_isRecording)
             {
-                await _ipcClient.SendMessageAsync(new IpcMessage { Type = IpcMessageType.PauseRecording });
+                // Pause recording
+                if (_keyboardHook != null)
+                {
+                    _keyboardHook.IsPaused = true;
+                }
                 _isRecording = false;
                 PauseResumeButton.Content = "Resume";
                 StatusBarText.Text = "Recording paused";
+
+                // Notify service
+                if (_ipcClient != null)
+                {
+                    try
+                    {
+                        await _ipcClient.SendMessageAsync(new IpcMessage { Type = IpcMessageType.PauseRecording });
+                    }
+                    catch { }
+                }
             }
             else
             {
-                await _ipcClient.SendMessageAsync(new IpcMessage { Type = IpcMessageType.ResumeRecording });
+                // Resume recording
+                if (_keyboardHook != null)
+                {
+                    _keyboardHook.IsPaused = false;
+                }
                 _isRecording = true;
                 PauseResumeButton.Content = "Pause";
                 StatusBarText.Text = "Recording resumed";
+
+                // Notify service
+                if (_ipcClient != null)
+                {
+                    try
+                    {
+                        await _ipcClient.SendMessageAsync(new IpcMessage { Type = IpcMessageType.ResumeRecording });
+                    }
+                    catch { }
+                }
             }
 
+            UpdateTrayIconText();
             await LoadRecentKeystrokesAsync();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

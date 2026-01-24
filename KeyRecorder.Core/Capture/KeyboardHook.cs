@@ -12,6 +12,9 @@ public class KeyboardHook : IDisposable
     private IntPtr _hookId = IntPtr.Zero;
     private bool _disposed;
     private readonly ILogger<KeyboardHook>? _logger;
+    private Thread? _messageLoopThread;
+    private uint _messageLoopThreadId;
+    private volatile bool _isRunning;
 
     public event EventHandler<KeystrokeEvent>? KeystrokeCaptured;
     public bool IsPaused { get; set; }
@@ -24,24 +27,81 @@ public class KeyboardHook : IDisposable
 
     public void Start()
     {
-        if (_hookId != IntPtr.Zero)
+        if (_isRunning)
         {
             _logger?.LogWarning("Hook already started");
             return;
         }
 
-        _hookId = SetHook(_hookCallback);
-        _logger?.LogInformation("Keyboard hook started");
+        _isRunning = true;
+        _messageLoopThread = new Thread(MessageLoopThreadProc)
+        {
+            IsBackground = true,
+            Name = "KeyboardHookMessageLoop"
+        };
+        _messageLoopThread.Start();
+        _logger?.LogInformation("Keyboard hook thread started");
+    }
+
+    private void MessageLoopThreadProc()
+    {
+        try
+        {
+            _messageLoopThreadId = NativeMethods.GetCurrentThreadId();
+            _hookId = SetHook(_hookCallback);
+            _logger?.LogInformation("Keyboard hook installed on thread {ThreadId}", _messageLoopThreadId);
+
+            // Run the message loop
+            while (_isRunning)
+            {
+                if (NativeMethods.GetMessage(out var msg, IntPtr.Zero, 0, 0))
+                {
+                    if (msg.message == NativeMethods.WM_QUIT)
+                        break;
+
+                    NativeMethods.TranslateMessage(ref msg);
+                    NativeMethods.DispatchMessage(ref msg);
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error in message loop thread");
+        }
+        finally
+        {
+            if (_hookId != IntPtr.Zero)
+            {
+                NativeMethods.UnhookWindowsHookEx(_hookId);
+                _hookId = IntPtr.Zero;
+            }
+            _logger?.LogInformation("Keyboard hook message loop ended");
+        }
     }
 
     public void Stop()
     {
-        if (_hookId != IntPtr.Zero)
+        if (!_isRunning)
+            return;
+
+        _isRunning = false;
+
+        // Post WM_QUIT to stop the message loop
+        if (_messageLoopThreadId != 0)
         {
-            NativeMethods.UnhookWindowsHookEx(_hookId);
-            _hookId = IntPtr.Zero;
-            _logger?.LogInformation("Keyboard hook stopped");
+            NativeMethods.PostThreadMessage(_messageLoopThreadId, NativeMethods.WM_QUIT, IntPtr.Zero, IntPtr.Zero);
         }
+
+        // Wait for thread to finish
+        _messageLoopThread?.Join(TimeSpan.FromSeconds(5));
+        _messageLoopThread = null;
+        _messageLoopThreadId = 0;
+
+        _logger?.LogInformation("Keyboard hook stopped");
     }
 
     private IntPtr SetHook(NativeMethods.LowLevelKeyboardProc proc)

@@ -1,4 +1,3 @@
-using KeyRecorder.Core.Capture;
 using KeyRecorder.Core.Data;
 using KeyRecorder.Core.Models;
 using KeyRecorder.Core.IPC;
@@ -10,7 +9,6 @@ public class KeyRecorderWorker : BackgroundService
 {
     private readonly ILogger<KeyRecorderWorker> _logger;
     private readonly IConfiguration _configuration;
-    private KeyboardHook? _keyboardHook;
     private DatabaseManager? _databaseManager;
     private AppConfiguration? _appConfig;
     private IpcServer? _ipcServer;
@@ -19,6 +17,7 @@ public class KeyRecorderWorker : BackgroundService
     private Timer? _snapshotTimer;
     private DateTime _lastSyncTime;
     private DateTime _lastSnapshotTime;
+    private bool _isRecordingPaused;
 
     public KeyRecorderWorker(ILogger<KeyRecorderWorker> logger, IConfiguration configuration)
     {
@@ -33,16 +32,14 @@ public class KeyRecorderWorker : BackgroundService
             _logger.LogInformation("KeyRecorder Service starting at: {time}", DateTimeOffset.Now);
 
             _appConfig = LoadConfiguration();
+            _isRecordingPaused = _appConfig.IsRecordingPaused;
 
             _databaseManager = new DatabaseManager(_appConfig.DatabasePath,
                 LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<DatabaseManager>());
             await _databaseManager.InitializeAsync();
 
-            _keyboardHook = new KeyboardHook(
-                LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<KeyboardHook>());
-            _keyboardHook.KeystrokeCaptured += OnKeystrokeCaptured;
-            _keyboardHook.IsPaused = _appConfig.IsRecordingPaused;
-            _keyboardHook.Start();
+            // Note: Keyboard capture is now handled by the UI app running in user session
+            // The service handles data storage, sync, and background maintenance jobs
 
             _ipcServer = new IpcServer(
                 LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<IpcServer>());
@@ -114,21 +111,6 @@ public class KeyRecorderWorker : BackgroundService
         _logger.LogInformation("Background jobs scheduled");
     }
 
-    private async void OnKeystrokeCaptured(object? sender, KeystrokeEvent e)
-    {
-        try
-        {
-            if (_databaseManager != null)
-            {
-                await _databaseManager.RecordKeystrokeAsync(e);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error recording keystroke");
-        }
-    }
-
     private async Task PerformSyncAsync()
     {
         try
@@ -191,20 +173,26 @@ public class KeyRecorderWorker : BackgroundService
         {
             switch (message.Type)
             {
-                case IpcMessageType.PauseRecording:
-                    if (_keyboardHook != null)
+                case IpcMessageType.KeystrokeNotification:
+                    // Receive keystroke from UI app and store it
+                    if (!string.IsNullOrEmpty(message.Payload) && _databaseManager != null)
                     {
-                        _keyboardHook.IsPaused = true;
-                        _logger.LogInformation("Recording paused");
+                        var keystroke = JsonSerializer.Deserialize<KeystrokeEvent>(message.Payload);
+                        if (keystroke != null)
+                        {
+                            await _databaseManager.RecordKeystrokeAsync(keystroke);
+                        }
                     }
                     break;
 
+                case IpcMessageType.PauseRecording:
+                    _isRecordingPaused = true;
+                    _logger.LogInformation("Recording paused (notified by UI)");
+                    break;
+
                 case IpcMessageType.ResumeRecording:
-                    if (_keyboardHook != null)
-                    {
-                        _keyboardHook.IsPaused = false;
-                        _logger.LogInformation("Recording resumed");
-                    }
+                    _isRecordingPaused = false;
+                    _logger.LogInformation("Recording resumed (notified by UI)");
                     break;
 
                 case IpcMessageType.GetStatus:
@@ -213,7 +201,7 @@ public class KeyRecorderWorker : BackgroundService
                         var count = await _databaseManager.GetKeystrokeCountAsync();
                         var status = new StatusResponse
                         {
-                            IsRecording = _keyboardHook?.IsPaused == false,
+                            IsRecording = !_isRecordingPaused,
                             TotalKeystrokes = count,
                             LastSyncTime = _lastSyncTime != DateTime.MinValue ? _lastSyncTime : null,
                             LastSnapshotTime = _lastSnapshotTime != DateTime.MinValue ? _lastSnapshotTime : null
@@ -252,8 +240,6 @@ public class KeyRecorderWorker : BackgroundService
             await _databaseManager.SyncHotToMainAsync();
         }
 
-        _keyboardHook?.Stop();
-        _keyboardHook?.Dispose();
         _databaseManager?.Dispose();
 
         await base.StopAsync(stoppingToken);
