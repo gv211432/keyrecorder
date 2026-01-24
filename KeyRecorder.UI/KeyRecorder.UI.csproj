@@ -11,11 +11,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="Assets\logo.png" />
     <Resource Include="Assets\logo-name.png" />
+    <Resource Include="Assets\logo.ico" />
   </ItemGroup>
 
   <ItemGroup>

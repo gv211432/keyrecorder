@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="KeyRecorder - Keyboard Activity Monitor" Height="600" Width="1000"
         WindowStartupLocation="CenterScreen"
-        Icon="/Assets/logo.png">
+        Icon="/Assets/logo.ico">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

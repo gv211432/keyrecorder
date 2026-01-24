@@ -18,7 +18,14 @@
       "Bash(certutil -hashfile:*)",
       "Bash(dir \"C:\\\\Program Files\\\\KeyRecorder\")",
       "Bash(dir \"C:\\\\Program Files \\(x86\\)\\\\KeyRecorder\")",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(powershell -ExecutionPolicy Bypass -File convert-icon.ps1:*)",
+      "Bash(copy:*)",
+      "Bash(cmd /c \"copy \"\"d:\\\\Documents\\\\mine\\\\keyrecorder\\\\KeyRecorder.UI\\\\Assets\\\\logo.ico\"\" \"\"d:\\\\Documents\\\\mine\\\\keyrecorder\\\\logo.ico\"\"\")",
+      "Bash(where iscc)",
+      "Bash(cmd /c \"where iscc 2>nul || dir \"\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup*\"\" /b 2>nul || dir \"\"C:\\\\Program Files\\\\Inno Setup*\"\" /b 2>nul || echo Inno Setup not found\")",
+      "Bash(cmd /c \"del \"\"d:\\\\Documents\\\\mine\\\\keyrecorder\\\\convert-icon.ps1\"\"\")",
+      "Bash(cmd /c \"dir \"\"d:\\\\Documents\\\\mine\\\\keyrecorder\\\\KeyRecorder.UI\\\\Assets\"\" && dir \"\"d:\\\\Documents\\\\mine\\\\keyrecorder\\\\logo.ico\"\"\")"
     ]
   }
 }

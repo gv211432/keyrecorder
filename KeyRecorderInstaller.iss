@@ -25,13 +25,12 @@ AllowNoIcons=yes
 LicenseFile=LICENSE
 OutputDir=Installer
 OutputBaseFilename=KeyRecorderSetup
-; SetupIconFile requires .ico format - commented out for now
-; SetupIconFile=KeyRecorder.UI\Assets\logo.png
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
-UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayIcon={app}\logo.ico
+SetupIconFile=logo.ico
 ; Architecture Support - Install to 64-bit Program Files on 64-bit Windows
 ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
@@ -65,6 +64,9 @@ Name: "autostart"; Description: "Start service automatically on boot"; GroupDesc
 Name: "startupitem"; Description: "Start KeyRecorder UI on login (required for keyboard capture)"; GroupDescription: "Startup Options:"; Flags: checkedonce
 
 [Files]
+; Application Icon
+Source: "logo.ico"; DestDir: "{app}"; Flags: ignoreversion
+
 ; Core Library
 Source: "KeyRecorder.Core\bin\Release\net10.0\KeyRecorder.Core.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "KeyRecorder.Core\bin\Release\net10.0\*.dll"; DestDir: "{app}"; Flags: ignoreversion
