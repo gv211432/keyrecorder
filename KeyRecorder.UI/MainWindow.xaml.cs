@@ -322,9 +322,17 @@ public partial class MainWindow : Window
 
             var grouped = GroupKeystrokesByMinute(keystrokes);
 
+            // Preserve IsReversed state across refresh
+            var reversedStates = _timelineEntries.ToDictionary(e => e.TimeLabel, e => e.IsReversed);
+
             _timelineEntries.Clear();
             foreach (var entry in grouped)
             {
+                // Restore reversed state if it was set
+                if (reversedStates.TryGetValue(entry.TimeLabel, out var wasReversed))
+                {
+                    entry.IsReversed = wasReversed;
+                }
                 _timelineEntries.Add(entry);
             }
 
