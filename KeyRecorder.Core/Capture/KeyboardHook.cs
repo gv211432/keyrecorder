@@ -127,10 +127,9 @@ public class KeyboardHook : IDisposable
         {
             int wParamInt = wParam.ToInt32();
 
+            // Only capture KEYDOWN events (not KEYUP) to avoid duplicates
             if (wParamInt == NativeMethods.WM_KEYDOWN ||
-                wParamInt == NativeMethods.WM_KEYUP ||
-                wParamInt == NativeMethods.WM_SYSKEYDOWN ||
-                wParamInt == NativeMethods.WM_SYSKEYUP)
+                wParamInt == NativeMethods.WM_SYSKEYDOWN)
             {
                 var hookStruct = Marshal.PtrToStructure<NativeMethods.KBDLLHOOKSTRUCT>(lParam);
 
@@ -139,7 +138,7 @@ public class KeyboardHook : IDisposable
                     Timestamp = DateTime.UtcNow,
                     VirtualKeyCode = hookStruct.vkCode,
                     KeyName = GetKeyName(hookStruct.vkCode),
-                    IsKeyDown = wParamInt == NativeMethods.WM_KEYDOWN || wParamInt == NativeMethods.WM_SYSKEYDOWN,
+                    IsKeyDown = true,
                     IsShiftPressed = IsKeyPressed(NativeMethods.VirtualKeys.VK_SHIFT),
                     IsCtrlPressed = IsKeyPressed(NativeMethods.VirtualKeys.VK_CONTROL),
                     IsAltPressed = IsKeyPressed(NativeMethods.VirtualKeys.VK_MENU),

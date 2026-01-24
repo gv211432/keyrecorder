@@ -38,7 +38,8 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button x:Name="AboutButton" Content="About" Width="80" Height="32" Margin="5,5,0,5"
                             Background="Transparent" Foreground="#eeeff1" BorderThickness="1" BorderBrush="#444"
-                            FontWeight="SemiBold" Click="AboutButton_Click">
+                            FontWeight="SemiBold" Click="AboutButton_Click"
+                            ToolTip="View application information and version">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Background" Value="Transparent"/>
@@ -65,7 +66,8 @@
                     </Button>
                     <Button x:Name="PauseResumeButton" Content="Pause" Width="100" Height="32" Margin="5"
                             Background="#0085d8" Foreground="White" BorderThickness="0"
-                            FontWeight="SemiBold" Click="PauseResumeButton_Click">
+                            FontWeight="SemiBold" Click="PauseResumeButton_Click"
+                            ToolTip="Pause or resume keyboard recording. When paused, no keystrokes are captured.">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Background" Value="#0085d8"/>
@@ -89,7 +91,8 @@
                     </Button>
                     <Button x:Name="RefreshButton" Content="Refresh" Width="100" Height="32" Margin="5"
                             Background="#eeeff1" Foreground="#0d0f10" BorderThickness="0"
-                            FontWeight="SemiBold" Click="RefreshButton_Click">
+                            FontWeight="SemiBold" Click="RefreshButton_Click"
+                            ToolTip="Reload the keystroke history from database. Auto-refreshes every 5 seconds.">
                         <Button.Style>
                             <Style TargetType="Button">
                                 <Setter Property="Background" Value="#eeeff1"/>
