@@ -180,15 +180,73 @@
                             </Border.Style>
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="70"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Column="0" Text="{Binding TimeLabel}"
                                            FontWeight="Bold" FontSize="13" Foreground="#0085d8" VerticalAlignment="Top"/>
 
-                                <TextBlock Grid.Column="1" Text="{Binding KeystrokesText}"
-                                           TextWrapping="Wrap" FontSize="13" Foreground="#0d0f10" LineHeight="20"/>
+                                <!-- Keystrokes with individual styling -->
+                                <ItemsControl Grid.Column="1" ItemsSource="{Binding DisplayKeystrokes}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{Binding BackgroundColor}"
+                                                    BorderBrush="{Binding BorderColor}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="3"
+                                                    Padding="4,2"
+                                                    Margin="0,2,6,2">
+                                                <TextBlock Text="{Binding DisplayText}"
+                                                           FontSize="13"
+                                                           Foreground="#0d0f10"
+                                                           FontFamily="Consolas"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Reverse toggle button -->
+                                <ToggleButton Grid.Column="2" IsChecked="{Binding IsReversed, Mode=TwoWay}"
+                                              Content="{Binding ReverseButtonText}"
+                                              VerticalAlignment="Top" Margin="8,0,0,0"
+                                              Width="60" Height="22" FontSize="10"
+                                              ToolTip="Toggle to reverse keystroke order for reading">
+                                    <ToggleButton.Style>
+                                        <Style TargetType="ToggleButton">
+                                            <Setter Property="Background" Value="#f5f5f5"/>
+                                            <Setter Property="Foreground" Value="#666"/>
+                                            <Setter Property="BorderBrush" Value="#ccc"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ToggleButton">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                                BorderThickness="1" CornerRadius="3" Padding="4,2">
+                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter Property="Background" Value="#e3f2fd"/>
+                                                    <Setter Property="BorderBrush" Value="#0085d8"/>
+                                                    <Setter Property="Foreground" Value="#0085d8"/>
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="BorderBrush" Value="#0085d8"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </ToggleButton.Style>
+                                </ToggleButton>
                             </Grid>
                         </Border>
                     </DataTemplate>

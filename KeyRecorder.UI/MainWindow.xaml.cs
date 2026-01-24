@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Drawing;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
@@ -363,17 +365,36 @@ public partial class MainWindow : Window
 
         foreach (var group in grouped)
         {
-            var keystrokeText = string.Join(" ", group.Select(x => GetDisplayKey(x.Keystroke)));
+            var keystrokeItems = group.Select(x => CreateDisplayItem(x.Keystroke)).ToList();
+            var keystrokeText = string.Join(" ", keystrokeItems.Select(k => k.DisplayText));
 
             entries.Add(new TimelineEntry
             {
                 TimeLabel = group.Key.ToString("HH:mm"),
                 KeystrokesText = keystrokeText,
-                KeystrokeCount = group.Count()
+                KeystrokeCount = group.Count(),
+                Keystrokes = keystrokeItems
             });
         }
 
         return entries;
+    }
+
+    private KeystrokeDisplayItem CreateDisplayItem(KeystrokeEvent k)
+    {
+        var hasModifier = k.IsCtrlPressed || k.IsAltPressed || k.IsShiftPressed || k.IsWinPressed;
+
+        var modifiers = "";
+        if (k.IsCtrlPressed) modifiers += "Ctrl+";
+        if (k.IsAltPressed) modifiers += "Alt+";
+        if (k.IsShiftPressed) modifiers += "Shift+";
+        if (k.IsWinPressed) modifiers += "Win+";
+
+        return new KeystrokeDisplayItem
+        {
+            DisplayText = modifiers + k.KeyName,
+            HasModifier = hasModifier
+        };
     }
 
     private async void SortOrderButton_Click(object sender, RoutedEventArgs e)
@@ -381,17 +402,6 @@ public partial class MainWindow : Window
         _newestFirst = !_newestFirst;
         SortOrderButton.Content = _newestFirst ? "Newest First" : "Oldest First";
         await LoadRecentKeystrokesAsync();
-    }
-
-    private string GetDisplayKey(KeystrokeEvent k)
-    {
-        var modifiers = "";
-        if (k.IsCtrlPressed) modifiers += "Ctrl+";
-        if (k.IsAltPressed) modifiers += "Alt+";
-        if (k.IsShiftPressed) modifiers += "Shift+";
-        if (k.IsWinPressed) modifiers += "Win+";
-
-        return modifiers + k.KeyName;
     }
 
     private async void PauseResumeButton_Click(object sender, RoutedEventArgs e)
@@ -465,9 +475,55 @@ public partial class MainWindow : Window
     }
 }
 
-public class TimelineEntry
+public class TimelineEntry : INotifyPropertyChanged
 {
+    private bool _isReversed;
+    private List<KeystrokeDisplayItem> _keystrokes = new();
+
     public string TimeLabel { get; set; } = string.Empty;
     public string KeystrokesText { get; set; } = string.Empty;
     public int KeystrokeCount { get; set; }
+
+    public List<KeystrokeDisplayItem> Keystrokes
+    {
+        get => _keystrokes;
+        set
+        {
+            _keystrokes = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(DisplayKeystrokes));
+        }
+    }
+
+    public bool IsReversed
+    {
+        get => _isReversed;
+        set
+        {
+            _isReversed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(DisplayKeystrokes));
+            OnPropertyChanged(nameof(ReverseButtonText));
+        }
+    }
+
+    public List<KeystrokeDisplayItem> DisplayKeystrokes =>
+        IsReversed ? Keystrokes.AsEnumerable().Reverse().ToList() : Keystrokes;
+
+    public string ReverseButtonText => IsReversed ? "Original" : "Reverse";
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
+
+public class KeystrokeDisplayItem
+{
+    public string DisplayText { get; set; } = string.Empty;
+    public bool HasModifier { get; set; }
+    public string BackgroundColor => HasModifier ? "#e3f2fd" : "Transparent";
+    public string BorderColor => HasModifier ? "#90caf9" : "Transparent";
 }
