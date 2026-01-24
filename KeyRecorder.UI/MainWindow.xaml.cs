@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
 using KeyRecorder.Core.IPC;
@@ -108,6 +109,10 @@ public partial class MainWindow : Window
             {
                 StatusText.Text = "Status: Connected";
                 StatusBarText.Text = "Connected to KeyRecorder Service";
+
+                // Query initial recording state
+                await QueryRecordingStateAsync();
+
                 _refreshTimer.Start();
                 await LoadRecentKeystrokesAsync();
                 return true;
@@ -151,6 +156,31 @@ public partial class MainWindow : Window
     private async void RefreshTimer_Tick(object? sender, EventArgs e)
     {
         await LoadRecentKeystrokesAsync();
+    }
+
+    private async Task QueryRecordingStateAsync()
+    {
+        try
+        {
+            if (_ipcClient == null) return;
+
+            var statusMessage = new IpcMessage { Type = IpcMessageType.GetStatus };
+            var response = await _ipcClient.SendMessageAndWaitForResponseAsync(statusMessage);
+
+            if (response?.Type == IpcMessageType.GetStatusResponse && !string.IsNullOrEmpty(response.Payload))
+            {
+                var status = JsonSerializer.Deserialize<StatusResponse>(response.Payload);
+                if (status != null)
+                {
+                    _isRecording = status.IsRecording;
+                    PauseResumeButton.Content = _isRecording ? "Pause" : "Resume";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusBarText.Text = $"Error querying status: {ex.Message}";
+        }
     }
 
     private async Task LoadRecentKeystrokesAsync()

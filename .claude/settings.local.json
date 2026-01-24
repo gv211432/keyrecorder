@@ -15,7 +15,10 @@
       "Bash(sc start \"KeyRecorder Service\")",
       "Bash(ls:*)",
       "Bash(timeout:*)",
-      "Bash(certutil -hashfile:*)"
+      "Bash(certutil -hashfile:*)",
+      "Bash(dir \"C:\\\\Program Files\\\\KeyRecorder\")",
+      "Bash(dir \"C:\\\\Program Files \\(x86\\)\\\\KeyRecorder\")",
+      "Bash(dir:*)"
     ]
   }
 }

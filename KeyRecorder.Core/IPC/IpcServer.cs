@@ -13,6 +13,8 @@ public class IpcServer : IDisposable
     private CancellationTokenSource? _cts;
     private Task? _serverTask;
     private bool _disposed;
+    private StreamWriter? _currentClientWriter;
+    private readonly SemaphoreSlim _writerLock = new(1, 1);
 
     public event EventHandler<IpcMessage>? MessageReceived;
 
@@ -85,6 +87,16 @@ public class IpcServer : IDisposable
             using var reader = new StreamReader(server);
             using var writer = new StreamWriter(server) { AutoFlush = true };
 
+            await _writerLock.WaitAsync(cancellationToken);
+            try
+            {
+                _currentClientWriter = writer;
+            }
+            finally
+            {
+                _writerLock.Release();
+            }
+
             while (server.IsConnected && !cancellationToken.IsCancellationRequested)
             {
                 var messageJson = await reader.ReadLineAsync(cancellationToken);
@@ -98,10 +110,41 @@ public class IpcServer : IDisposable
                     MessageReceived?.Invoke(this, message);
                 }
             }
+
+            await _writerLock.WaitAsync(cancellationToken);
+            try
+            {
+                _currentClientWriter = null;
+            }
+            finally
+            {
+                _writerLock.Release();
+            }
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Error handling client");
+        }
+    }
+
+    public async Task SendResponseAsync(IpcMessage message)
+    {
+        await _writerLock.WaitAsync();
+        try
+        {
+            if (_currentClientWriter == null)
+            {
+                _logger?.LogWarning("No client connected to send response");
+                return;
+            }
+
+            var json = JsonSerializer.Serialize(message);
+            await _currentClientWriter.WriteLineAsync(json);
+            _logger?.LogDebug("Sent response: {Type}", message.Type);
+        }
+        finally
+        {
+            _writerLock.Release();
         }
     }
 

@@ -208,7 +208,7 @@ public class KeyRecorderWorker : BackgroundService
                     break;
 
                 case IpcMessageType.GetStatus:
-                    if (_databaseManager != null)
+                    if (_databaseManager != null && _ipcServer != null)
                     {
                         var count = await _databaseManager.GetKeystrokeCountAsync();
                         var status = new StatusResponse
@@ -219,6 +219,13 @@ public class KeyRecorderWorker : BackgroundService
                             LastSnapshotTime = _lastSnapshotTime != DateTime.MinValue ? _lastSnapshotTime : null
                         };
                         _logger.LogInformation("Status requested: {Status}", JsonSerializer.Serialize(status));
+
+                        var response = new IpcMessage
+                        {
+                            Type = IpcMessageType.GetStatusResponse,
+                            Payload = JsonSerializer.Serialize(status)
+                        };
+                        await _ipcServer.SendResponseAsync(response);
                     }
                     break;
             }
