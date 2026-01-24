@@ -113,10 +113,16 @@ Filename: "{sys}\sc.exe"; Parameters: "start ""{#MyServiceName}"""; Flags: runhi
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-; Stop and remove the service
+; Kill the UI application first
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM ""{#MyAppExeName}"""; Flags: runhidden; RunOnceId: "KillUI"
+; Stop the service
 Filename: "{sys}\sc.exe"; Parameters: "stop ""{#MyServiceName}"""; Flags: runhidden; RunOnceId: "StopService"
-Filename: "{sys}\waitfor"; Parameters: "ServiceStopped /t 5"; Flags: runhidden; RunOnceId: "WaitForStop"
+; Wait for service to stop
+Filename: "{sys}\timeout.exe"; Parameters: "/t 3 /nobreak"; Flags: runhidden; RunOnceId: "WaitForStop"
+; Delete the service
 Filename: "{sys}\sc.exe"; Parameters: "delete ""{#MyServiceName}"""; Flags: runhidden; RunOnceId: "DeleteService"
+; Wait a moment for cleanup
+Filename: "{sys}\timeout.exe"; Parameters: "/t 2 /nobreak"; Flags: runhidden; RunOnceId: "WaitForCleanup"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{commonappdata}\KeyRecorder"
@@ -149,6 +155,14 @@ var
   ResultCode: Integer;
 begin
   Result := True;
+
+  // Kill the UI application before uninstalling
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM "{#MyAppExeName}"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(1000);
+
+  // Stop the service before uninstalling
+  Exec(ExpandConstant('{sys}\sc.exe'), 'stop "{#MyServiceName}"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(2000);
 
   // Show confirmation dialog
   if MsgBox('Do you want to delete all recorded keystroke data?' + #13#10 + #13#10 +

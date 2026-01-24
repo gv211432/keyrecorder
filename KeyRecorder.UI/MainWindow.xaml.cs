@@ -96,13 +96,24 @@ public partial class MainWindow : Window
 
     private void ShowWindow()
     {
-        Show();
-        WindowState = WindowState.Normal;
-        Activate();
+        // Don't try to show if we're in the process of exiting
+        if (_isExiting) return;
+
+        try
+        {
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
+        }
+        catch (InvalidOperationException)
+        {
+            // Window is closing, ignore
+        }
     }
 
     private void ToggleRecording()
     {
+        if (_isExiting) return;
         Dispatcher.Invoke(() => PauseResumeButton_Click(this, new RoutedEventArgs()));
     }
 
