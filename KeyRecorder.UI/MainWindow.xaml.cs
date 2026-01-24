@@ -19,6 +19,8 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _refreshTimer;
     private readonly ObservableCollection<TimelineEntry> _timelineEntries;
     private bool _isRecording;
+    private bool _isInitialized;
+    private bool _newestFirst = true;
     private Forms.NotifyIcon? _notifyIcon;
     private bool _isExiting;
 
@@ -38,6 +40,11 @@ public partial class MainWindow : Window
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
         StateChanged += MainWindow_StateChanged;
+
+        // Set initial state before initialization completes
+        RecordingStatusText.Text = "Starting...";
+        RecordingStatusText.Foreground = System.Windows.Media.Brushes.Orange;
+        PauseResumeButton.IsEnabled = false;
 
         InitializeNotifyIcon();
     }
@@ -136,7 +143,7 @@ public partial class MainWindow : Window
     {
         if (_notifyIcon != null)
         {
-            var status = _isRecording ? "Recording" : "Paused";
+            var status = !_isInitialized ? "Starting..." : (_isRecording ? "Recording" : "Paused");
             _notifyIcon.Text = $"KeyRecorder - {status}";
         }
     }
@@ -161,7 +168,11 @@ public partial class MainWindow : Window
             // Start keyboard capture
             _keyboardHook.Start();
             _isRecording = true;
+            _isInitialized = true;
             PauseResumeButton.Content = "Pause";
+            PauseResumeButton.IsEnabled = true;
+            RecordingStatusText.Text = "Active";
+            RecordingStatusText.Foreground = System.Windows.Media.Brushes.Green;
             UpdateTrayIconText();
 
             // Check if we should start minimized (e.g., from Windows startup)
@@ -318,9 +329,13 @@ public partial class MainWindow : Window
             var count = await _databaseManager.GetKeystrokeCountAsync();
             TotalKeystrokesText.Text = count.ToString("N0");
 
-            RecordingStatusText.Text = _isRecording ? "Active" : "Paused";
-            RecordingStatusText.Foreground = _isRecording ?
-                System.Windows.Media.Brushes.Green : System.Windows.Media.Brushes.Red;
+            // Only update recording status after initialization is complete
+            if (_isInitialized)
+            {
+                RecordingStatusText.Text = _isRecording ? "Active" : "Paused";
+                RecordingStatusText.Foreground = _isRecording ?
+                    System.Windows.Media.Brushes.Green : System.Windows.Media.Brushes.Red;
+            }
 
             StatusBarText.Text = $"Last updated: {DateTime.Now:HH:mm:ss}";
         }
@@ -334,25 +349,38 @@ public partial class MainWindow : Window
     {
         var entries = new List<TimelineEntry>();
 
-        var grouped = keystrokes
+        // Convert UTC timestamps to local time, then group by minute
+        var groupedQuery = keystrokes
             .Where(k => k.IsKeyDown)
-            .GroupBy(k => new DateTime(k.Timestamp.Year, k.Timestamp.Month, k.Timestamp.Day,
-                                       k.Timestamp.Hour, k.Timestamp.Minute, 0))
-            .OrderByDescending(g => g.Key);
+            .Select(k => new { Keystroke = k, LocalTime = k.Timestamp.ToLocalTime() })
+            .GroupBy(x => new DateTime(x.LocalTime.Year, x.LocalTime.Month, x.LocalTime.Day,
+                                       x.LocalTime.Hour, x.LocalTime.Minute, 0));
+
+        // Apply sort order based on user preference
+        var grouped = _newestFirst
+            ? groupedQuery.OrderByDescending(g => g.Key)
+            : groupedQuery.OrderBy(g => g.Key);
 
         foreach (var group in grouped)
         {
-            var keystrokeText = string.Join(" ", group.Select(k => GetDisplayKey(k)));
+            var keystrokeText = string.Join(" ", group.Select(x => GetDisplayKey(x.Keystroke)));
 
             entries.Add(new TimelineEntry
             {
-                TimeLabel = group.Key.ToLocalTime().ToString("HH:mm"),
+                TimeLabel = group.Key.ToString("HH:mm"),
                 KeystrokesText = keystrokeText,
                 KeystrokeCount = group.Count()
             });
         }
 
         return entries;
+    }
+
+    private async void SortOrderButton_Click(object sender, RoutedEventArgs e)
+    {
+        _newestFirst = !_newestFirst;
+        SortOrderButton.Content = _newestFirst ? "Newest First" : "Oldest First";
+        await LoadRecentKeystrokesAsync();
     }
 
     private string GetDisplayKey(KeystrokeEvent k)

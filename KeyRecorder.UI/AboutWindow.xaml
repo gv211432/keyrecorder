@@ -1,8 +1,8 @@
 <Window x:Class="KeyRecorder.UI.AboutWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="About KeyRecorder" Height="400" Width="500"
-        WindowStartupLocation="CenterScreen"
+        Title="About KeyRecorder" Height="480" Width="500"
+        WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="White">
     <Grid>
@@ -37,12 +37,27 @@
 
             <Border Background="#eeeff1" Padding="15" CornerRadius="6" Margin="0,10,0,0">
                 <StackPanel>
-                    <TextBlock Text="Features:" FontWeight="Bold" Foreground="#0085d8" FontSize="12" Margin="0,0,0,8"/>
-                    <TextBlock Text="✓ 24/7 Background Recording" FontSize="11" Foreground="#0d0f10" Margin="0,2"/>
-                    <TextBlock Text="✓ Triple Database Architecture" FontSize="11" Foreground="#0d0f10" Margin="0,2"/>
-                    <TextBlock Text="✓ Automatic Crash Recovery" FontSize="11" Foreground="#0d0f10" Margin="0,2"/>
-                    <TextBlock Text="✓ Local-Only (No Cloud, No Telemetry)" FontSize="11" Foreground="#0d0f10" Margin="0,2"/>
-                    <TextBlock Text="✓ Configurable Retention Policies" FontSize="11" Foreground="#0d0f10" Margin="0,2"/>
+                    <TextBlock Text="Features:" FontWeight="Bold" Foreground="#0085d8" FontSize="13" Margin="0,0,0,10"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,3">
+                        <TextBlock Text="*" Foreground="#0085d8" FontWeight="Bold" Width="15"/>
+                        <TextBlock Text="24/7 Background Recording" FontSize="12" Foreground="#0d0f10"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,3">
+                        <TextBlock Text="*" Foreground="#0085d8" FontWeight="Bold" Width="15"/>
+                        <TextBlock Text="Triple Database Architecture" FontSize="12" Foreground="#0d0f10"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,3">
+                        <TextBlock Text="*" Foreground="#0085d8" FontWeight="Bold" Width="15"/>
+                        <TextBlock Text="Automatic Crash Recovery" FontSize="12" Foreground="#0d0f10"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,3">
+                        <TextBlock Text="*" Foreground="#0085d8" FontWeight="Bold" Width="15"/>
+                        <TextBlock Text="Local-Only (No Cloud, No Telemetry)" FontSize="12" Foreground="#0d0f10"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,3">
+                        <TextBlock Text="*" Foreground="#0085d8" FontWeight="Bold" Width="15"/>
+                        <TextBlock Text="Configurable Retention Policies" FontSize="12" Foreground="#0d0f10"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
         </StackPanel>

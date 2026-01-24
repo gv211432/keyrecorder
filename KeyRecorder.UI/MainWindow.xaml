@@ -120,14 +120,47 @@
 
         <!-- Statistics Bar -->
         <Border Grid.Row="1" Background="#eeeff1" Padding="12" BorderBrush="#d0d0d0" BorderThickness="0,1">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Total Keystrokes: " Foreground="#0d0f10" FontWeight="SemiBold" FontSize="13"/>
-                <TextBlock x:Name="TotalKeystrokesText" Text="0" Foreground="#0085d8" FontWeight="Bold" FontSize="13" Margin="0,0,20,0"/>
-                <TextBlock Text="Last Sync: " Foreground="#0d0f10" FontWeight="SemiBold" FontSize="13"/>
-                <TextBlock x:Name="LastSyncText" Text="N/A" Foreground="#0085d8" FontWeight="Bold" FontSize="13" Margin="0,0,20,0"/>
-                <TextBlock Text="Recording: " Foreground="#0d0f10" FontWeight="SemiBold" FontSize="13"/>
-                <TextBlock x:Name="RecordingStatusText" Text="Unknown" Foreground="#e61f47" FontWeight="Bold" FontSize="13"/>
-            </StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Total Keystrokes: " Foreground="#0d0f10" FontWeight="SemiBold" FontSize="13"/>
+                    <TextBlock x:Name="TotalKeystrokesText" Text="0" Foreground="#0085d8" FontWeight="Bold" FontSize="13" Margin="0,0,20,0"/>
+                    <TextBlock Text="Last Sync: " Foreground="#0d0f10" FontWeight="SemiBold" FontSize="13"/>
+                    <TextBlock x:Name="LastSyncText" Text="N/A" Foreground="#0085d8" FontWeight="Bold" FontSize="13" Margin="0,0,20,0"/>
+                    <TextBlock Text="Recording: " Foreground="#0d0f10" FontWeight="SemiBold" FontSize="13"/>
+                    <TextBlock x:Name="RecordingStatusText" Text="Unknown" Foreground="#e61f47" FontWeight="Bold" FontSize="13"/>
+                </StackPanel>
+                <Button Grid.Column="1" x:Name="SortOrderButton" Content="Newest First" Width="110" Height="26"
+                        Background="White" Foreground="#0d0f10" BorderThickness="1" BorderBrush="#ccc"
+                        FontSize="11" Click="SortOrderButton_Click"
+                        ToolTip="Toggle between showing newest or oldest entries first">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="3" Padding="8,2">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#f0f0f0"/>
+                                    <Setter Property="BorderBrush" Value="#0085d8"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </Grid>
         </Border>
 
         <!-- Keystroke Display Area -->

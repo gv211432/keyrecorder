@@ -15,6 +15,17 @@ public class KeyboardHook : IDisposable
     private Thread? _messageLoopThread;
     private uint _messageLoopThreadId;
     private volatile bool _isRunning;
+    private readonly HashSet<int> _pressedKeys = new();
+
+    // Modifier key virtual key codes
+    private static readonly HashSet<int> ModifierKeys = new()
+    {
+        0x10, 0x11, 0x12,       // Shift, Ctrl, Alt (generic)
+        0xA0, 0xA1,             // Left/Right Shift
+        0xA2, 0xA3,             // Left/Right Ctrl
+        0xA4, 0xA5,             // Left/Right Alt
+        0x5B, 0x5C              // Left/Right Win
+    };
 
     public event EventHandler<KeystrokeEvent>? KeystrokeCaptured;
     public bool IsPaused { get; set; }
@@ -126,18 +137,33 @@ public class KeyboardHook : IDisposable
         if (nCode >= 0 && !IsPaused)
         {
             int wParamInt = wParam.ToInt32();
+            var hookStruct = Marshal.PtrToStructure<NativeMethods.KBDLLHOOKSTRUCT>(lParam);
+            int vkCode = hookStruct.vkCode;
 
-            // Only capture KEYDOWN events (not KEYUP) to avoid duplicates
-            if (wParamInt == NativeMethods.WM_KEYDOWN ||
-                wParamInt == NativeMethods.WM_SYSKEYDOWN)
+            // Handle KEYUP to track released keys
+            if (wParamInt == NativeMethods.WM_KEYUP ||
+                wParamInt == NativeMethods.WM_SYSKEYUP)
             {
-                var hookStruct = Marshal.PtrToStructure<NativeMethods.KBDLLHOOKSTRUCT>(lParam);
+                _pressedKeys.Remove(vkCode);
+            }
+            // Handle KEYDOWN events
+            else if (wParamInt == NativeMethods.WM_KEYDOWN ||
+                     wParamInt == NativeMethods.WM_SYSKEYDOWN)
+            {
+                // Skip auto-repeat for ALL keys (they fire repeatedly when held)
+                if (_pressedKeys.Contains(vkCode))
+                {
+                    return NativeMethods.CallNextHookEx(_hookId, nCode, wParam, lParam);
+                }
+
+                // Track this key as pressed
+                _pressedKeys.Add(vkCode);
 
                 var keystroke = new KeystrokeEvent
                 {
                     Timestamp = DateTime.UtcNow,
-                    VirtualKeyCode = hookStruct.vkCode,
-                    KeyName = GetKeyName(hookStruct.vkCode),
+                    VirtualKeyCode = vkCode,
+                    KeyName = GetKeyName(vkCode),
                     IsKeyDown = true,
                     IsShiftPressed = IsKeyPressed(NativeMethods.VirtualKeys.VK_SHIFT),
                     IsCtrlPressed = IsKeyPressed(NativeMethods.VirtualKeys.VK_CONTROL),
