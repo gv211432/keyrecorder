@@ -25,7 +25,14 @@
       "Bash(where iscc)",
       "Bash(cmd /c \"where iscc 2>nul || dir \"\"C:\\\\Program Files \\(x86\\)\\\\Inno Setup*\"\" /b 2>nul || dir \"\"C:\\\\Program Files\\\\Inno Setup*\"\" /b 2>nul || echo Inno Setup not found\")",
       "Bash(cmd /c \"del \"\"d:\\\\Documents\\\\mine\\\\keyrecorder\\\\convert-icon.ps1\"\"\")",
-      "Bash(cmd /c \"dir \"\"d:\\\\Documents\\\\mine\\\\keyrecorder\\\\KeyRecorder.UI\\\\Assets\"\" && dir \"\"d:\\\\Documents\\\\mine\\\\keyrecorder\\\\logo.ico\"\"\")"
+      "Bash(cmd /c \"dir \"\"d:\\\\Documents\\\\mine\\\\keyrecorder\\\\KeyRecorder.UI\\\\Assets\"\" && dir \"\"d:\\\\Documents\\\\mine\\\\keyrecorder\\\\logo.ico\"\"\")",
+      "Bash(gh release list:*)",
+      "Bash(gh release create:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(git push:*)",
+      "Bash(find:*)",
+      "Bash(tasklist /FI \"IMAGENAME eq KeyRecorder.UI.exe\")"
     ]
   }
 }

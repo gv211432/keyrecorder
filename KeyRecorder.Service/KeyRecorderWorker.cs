@@ -174,15 +174,9 @@ public class KeyRecorderWorker : BackgroundService
             switch (message.Type)
             {
                 case IpcMessageType.KeystrokeNotification:
-                    // Receive keystroke from UI app and store it
-                    if (!string.IsNullOrEmpty(message.Payload) && _databaseManager != null)
-                    {
-                        var keystroke = JsonSerializer.Deserialize<KeystrokeEvent>(message.Payload);
-                        if (keystroke != null)
-                        {
-                            await _databaseManager.RecordKeystrokeAsync(keystroke);
-                        }
-                    }
+                    // UI already stores keystrokes in the shared database.
+                    // This notification is kept for future use (e.g., real-time activity monitoring)
+                    // but we don't store again to avoid duplicates.
                     break;
 
                 case IpcMessageType.PauseRecording:
