@@ -23,6 +23,9 @@ public partial class MainWindow : Window
     private bool _isRecording;
     private bool _isInitialized;
     private bool _newestFirst = true;
+    private int _currentLoadLimit = 500;
+    private const int LoadIncrement = 500;
+    private long _totalKeystrokeCount;
     private Forms.NotifyIcon? _notifyIcon;
     private bool _isExiting;
 
@@ -318,26 +321,36 @@ public partial class MainWindow : Window
         {
             if (_databaseManager == null) return;
 
-            var keystrokes = await _databaseManager.GetRecentKeystrokesAsync(500);
+            var keystrokes = await _databaseManager.GetRecentKeystrokesAsync(_currentLoadLimit);
 
             var grouped = GroupKeystrokesByMinute(keystrokes);
 
-            // Preserve IsReversed state across refresh
+            // Preserve IsReversed and IsResolved states across refresh
             var reversedStates = _timelineEntries.ToDictionary(e => e.TimeLabel, e => e.IsReversed);
+            var resolvedStates = _timelineEntries.ToDictionary(e => e.TimeLabel, e => e.IsResolved);
 
             _timelineEntries.Clear();
             foreach (var entry in grouped)
             {
-                // Restore reversed state if it was set
+                // Restore reversed and resolved states if they were set
                 if (reversedStates.TryGetValue(entry.TimeLabel, out var wasReversed))
                 {
                     entry.IsReversed = wasReversed;
                 }
+                if (resolvedStates.TryGetValue(entry.TimeLabel, out var wasResolved))
+                {
+                    entry.IsResolved = wasResolved;
+                }
                 _timelineEntries.Add(entry);
             }
 
-            var count = await _databaseManager.GetKeystrokeCountAsync();
-            TotalKeystrokesText.Text = count.ToString("N0");
+            _totalKeystrokeCount = await _databaseManager.GetKeystrokeCountAsync();
+            TotalKeystrokesText.Text = _totalKeystrokeCount.ToString("N0");
+
+            // Update Load More button visibility
+            LoadMoreButton.Visibility = keystrokes.Count >= _currentLoadLimit && keystrokes.Count < _totalKeystrokeCount
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
             // Only update recording status after initialization is complete
             if (_isInitialized)
@@ -379,6 +392,7 @@ public partial class MainWindow : Window
             entries.Add(new TimelineEntry
             {
                 TimeLabel = group.Key.ToString("HH:mm"),
+                DateLabel = group.Key.ToString("dd MMM yyyy"),
                 KeystrokesText = keystrokeText,
                 KeystrokeCount = group.Count(),
                 Keystrokes = keystrokeItems
@@ -401,7 +415,10 @@ public partial class MainWindow : Window
         return new KeystrokeDisplayItem
         {
             DisplayText = modifiers + k.KeyName,
-            HasModifier = hasModifier
+            HasModifier = hasModifier,
+            IsShiftModified = k.IsShiftPressed,
+            IsCtrlPressed = k.IsCtrlPressed,
+            KeyName = k.KeyName
         };
     }
 
@@ -473,6 +490,12 @@ public partial class MainWindow : Window
         await LoadRecentKeystrokesAsync();
     }
 
+    private async void LoadMoreButton_Click(object sender, RoutedEventArgs e)
+    {
+        _currentLoadLimit += LoadIncrement;
+        await LoadRecentKeystrokesAsync();
+    }
+
     private void AboutButton_Click(object sender, RoutedEventArgs e)
     {
         var aboutWindow = new AboutWindow
@@ -486,9 +509,11 @@ public partial class MainWindow : Window
 public class TimelineEntry : INotifyPropertyChanged
 {
     private bool _isReversed;
+    private bool _isResolved;
     private List<KeystrokeDisplayItem> _keystrokes = new();
 
     public string TimeLabel { get; set; } = string.Empty;
+    public string DateLabel { get; set; } = string.Empty;
     public string KeystrokesText { get; set; } = string.Empty;
     public int KeystrokeCount { get; set; }
 
@@ -515,10 +540,168 @@ public class TimelineEntry : INotifyPropertyChanged
         }
     }
 
-    public List<KeystrokeDisplayItem> DisplayKeystrokes =>
-        IsReversed ? Keystrokes.AsEnumerable().Reverse().ToList() : Keystrokes;
+    public bool IsResolved
+    {
+        get => _isResolved;
+        set
+        {
+            _isResolved = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(DisplayKeystrokes));
+            OnPropertyChanged(nameof(ResolveButtonText));
+        }
+    }
+
+    public List<KeystrokeDisplayItem> DisplayKeystrokes
+    {
+        get
+        {
+            if (IsResolved)
+            {
+                return GetResolvedKeystrokes();
+            }
+            return IsReversed ? Keystrokes.AsEnumerable().Reverse().ToList() : Keystrokes;
+        }
+    }
+
+    private List<KeystrokeDisplayItem> GetResolvedKeystrokes()
+    {
+        var result = new List<KeystrokeDisplayItem>();
+        // Process in reverse order (oldest first) to simulate typing
+        var reversed = Keystrokes.AsEnumerable().Reverse().ToList();
+
+        foreach (var item in reversed)
+        {
+            var keyName = item.KeyName;
+
+            // Handle Backspace
+            if (keyName == "Back" || keyName == "Backspace")
+            {
+                if (item.IsCtrlPressed)
+                {
+                    // Ctrl+Backspace: remove characters until space is encountered
+                    while (result.Count > 0)
+                    {
+                        var last = result[result.Count - 1];
+                        result.RemoveAt(result.Count - 1);
+                        if (last.KeyName == "Space" || last.DisplayText == " ")
+                            break;
+                    }
+                }
+                else
+                {
+                    // Regular Backspace: remove last character
+                    if (result.Count > 0)
+                        result.RemoveAt(result.Count - 1);
+                }
+                continue;
+            }
+
+            // Skip modifier-only keys and non-printable keys
+            if (keyName == "Shift" || keyName == "LShiftKey" || keyName == "RShiftKey" ||
+                keyName == "Control" || keyName == "LControlKey" || keyName == "RControlKey" ||
+                keyName == "Alt" || keyName == "LMenu" || keyName == "RMenu" ||
+                keyName == "LWin" || keyName == "RWin" ||
+                keyName == "CapsLock" || keyName == "Tab" || keyName == "Escape" ||
+                keyName == "Enter" || keyName == "Return")
+            {
+                continue;
+            }
+
+            // Convert key to display character
+            var displayChar = GetDisplayCharacter(keyName, item.IsShiftModified);
+
+            result.Add(new KeystrokeDisplayItem
+            {
+                DisplayText = displayChar,
+                KeyName = keyName,
+                IsShiftModified = item.IsShiftModified && IsLetterKey(keyName),
+                IsResolvedMode = true,
+                HasModifier = false
+            });
+        }
+
+        return result;
+    }
+
+    private static bool IsLetterKey(string keyName)
+    {
+        return keyName.Length == 1 && char.IsLetter(keyName[0]);
+    }
+
+    private static string GetDisplayCharacter(string keyName, bool isShift)
+    {
+        // Handle space
+        if (keyName == "Space")
+            return " ";
+
+        // Handle single letter keys
+        if (keyName.Length == 1 && char.IsLetter(keyName[0]))
+        {
+            return isShift ? keyName.ToUpper() : keyName.ToLower();
+        }
+
+        // Handle number keys with shift (symbols)
+        if (isShift)
+        {
+            return keyName switch
+            {
+                "D1" => "!",
+                "D2" => "@",
+                "D3" => "#",
+                "D4" => "$",
+                "D5" => "%",
+                "D6" => "^",
+                "D7" => "&",
+                "D8" => "*",
+                "D9" => "(",
+                "D0" => ")",
+                "OemMinus" => "_",
+                "Oemplus" => "+",
+                "OemOpenBrackets" => "{",
+                "Oem6" => "}",
+                "Oem5" => "|",
+                "Oem1" => ":",
+                "OemQuotes" => "\"",
+                "Oemcomma" => "<",
+                "OemPeriod" => ">",
+                "OemQuestion" => "?",
+                "Oemtilde" => "~",
+                _ => keyName
+            };
+        }
+        else
+        {
+            return keyName switch
+            {
+                "D1" => "1",
+                "D2" => "2",
+                "D3" => "3",
+                "D4" => "4",
+                "D5" => "5",
+                "D6" => "6",
+                "D7" => "7",
+                "D8" => "8",
+                "D9" => "9",
+                "D0" => "0",
+                "OemMinus" => "-",
+                "Oemplus" => "=",
+                "OemOpenBrackets" => "[",
+                "Oem6" => "]",
+                "Oem5" => "\\",
+                "Oem1" => ";",
+                "OemQuotes" => "'",
+                "Oemcomma" => ",",
+                "OemPeriod" => ".",
+                "OemQuestion" => "/",
+                "Oemtilde" => "`",
+                _ => keyName
+            };
+        }
+    }
 
     public string ReverseButtonText => IsReversed ? "Original" : "Reverse";
+    public string ResolveButtonText => IsResolved ? "Original" : "Resolve";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -532,6 +715,11 @@ public class KeystrokeDisplayItem
 {
     public string DisplayText { get; set; } = string.Empty;
     public bool HasModifier { get; set; }
-    public string BackgroundColor => HasModifier ? "#e3f2fd" : "Transparent";
-    public string BorderColor => HasModifier ? "#90caf9" : "Transparent";
+    public bool IsShiftModified { get; set; }
+    public bool IsCtrlPressed { get; set; }
+    public string KeyName { get; set; } = string.Empty;
+    public bool IsResolvedMode { get; set; }
+    public string BackgroundColor => HasModifier && !IsResolvedMode ? "#e3f2fd" : "Transparent";
+    public string BorderColor => HasModifier && !IsResolvedMode ? "#90caf9" : "Transparent";
+    public string ForegroundColor => IsResolvedMode && IsShiftModified ? "#e57373" : "#0d0f10";
 }

@@ -18,7 +18,8 @@
         </Border>
 
         <!-- Content -->
-        <StackPanel Grid.Row="1" Margin="30,25" VerticalAlignment="Center">
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="30,25" VerticalAlignment="Center">
             <TextBlock Text="Keyboard Activity Monitor" FontSize="16" Foreground="#0085d8"
                        FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,20"/>
 
@@ -61,6 +62,7 @@
                 </StackPanel>
             </Border>
         </StackPanel>
+        </ScrollViewer>
 
         <!-- Footer -->
         <Border Grid.Row="2" Background="#eeeff1" Padding="20" BorderBrush="#d0d0d0" BorderThickness="0,1,0,0">
