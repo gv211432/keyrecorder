@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using KeyRecorder.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -12,6 +13,12 @@ public class DatabaseManager : IDisposable
     private readonly string _basePath;
     private long _sequenceCounter;
     private bool _disposed;
+
+    // Debounce buffering for keystrokes - reduces database writes during fast typing
+    private readonly ConcurrentQueue<KeystrokeEvent> _keystrokeBuffer = new();
+    private Timer? _flushTimer;
+    private readonly object _flushLock = new();
+    private const int FlushDelayMs = 2000; // 2 second debounce
 
     public DatabaseManager(string basePath, ILogger<DatabaseManager>? logger = null)
     {
@@ -29,10 +36,79 @@ public class DatabaseManager : IDisposable
         _logger?.LogInformation("Database initialized at {Path}", _basePath);
     }
 
-    public async Task<long> RecordKeystrokeAsync(KeystrokeEvent keystroke)
+    public Task<long> RecordKeystrokeAsync(KeystrokeEvent keystroke)
     {
+        // Assign sequence ID immediately to preserve ordering
         keystroke.SequenceId = Interlocked.Increment(ref _sequenceCounter);
-        return await _hotDb.InsertKeystrokeAsync(keystroke);
+
+        // Add to buffer instead of immediate database write
+        _keystrokeBuffer.Enqueue(keystroke);
+
+        // Reset the debounce timer - flush will happen after 2 seconds of inactivity
+        ResetFlushTimer();
+
+        // Return immediately - no blocking database operation
+        return Task.FromResult(keystroke.SequenceId);
+    }
+
+    private void ResetFlushTimer()
+    {
+        lock (_flushLock)
+        {
+            // Dispose existing timer and create new one
+            _flushTimer?.Dispose();
+            _flushTimer = new Timer(
+                _ => _ = FlushBufferAsync(),
+                null,
+                FlushDelayMs,
+                Timeout.Infinite);
+        }
+    }
+
+    private async Task FlushBufferAsync()
+    {
+        if (_keystrokeBuffer.IsEmpty)
+            return;
+
+        // Collect all buffered keystrokes
+        var keystrokesToFlush = new List<KeystrokeEvent>();
+        while (_keystrokeBuffer.TryDequeue(out var keystroke))
+        {
+            keystrokesToFlush.Add(keystroke);
+        }
+
+        if (keystrokesToFlush.Count == 0)
+            return;
+
+        try
+        {
+            // Bulk insert all keystrokes in a single transaction
+            await _hotDb.BulkInsertKeystrokesAsync(keystrokesToFlush);
+            _logger?.LogDebug("Flushed {Count} keystrokes to database", keystrokesToFlush.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error flushing keystroke buffer");
+            // Re-queue keystrokes on failure to avoid data loss
+            foreach (var keystroke in keystrokesToFlush)
+            {
+                _keystrokeBuffer.Enqueue(keystroke);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Forces an immediate flush of buffered keystrokes to the database.
+    /// Call this before closing the application to ensure no data is lost.
+    /// </summary>
+    public async Task FlushAsync()
+    {
+        lock (_flushLock)
+        {
+            _flushTimer?.Dispose();
+            _flushTimer = null;
+        }
+        await FlushBufferAsync();
     }
 
     public async Task SyncHotToMainAsync()
@@ -206,6 +282,17 @@ public class DatabaseManager : IDisposable
     public void Dispose()
     {
         if (_disposed) return;
+
+        // Flush any remaining buffered keystrokes before disposing
+        lock (_flushLock)
+        {
+            _flushTimer?.Dispose();
+            _flushTimer = null;
+        }
+
+        // Synchronously flush remaining keystrokes
+        FlushBufferAsync().GetAwaiter().GetResult();
+
         _hotDb?.Dispose();
         _mainDb?.Dispose();
         _disposed = true;

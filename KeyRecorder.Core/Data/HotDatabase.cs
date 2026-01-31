@@ -104,4 +104,26 @@ public class HotDatabase : BaseDatabase
         var result = await command.ExecuteScalarAsync();
         return result != null ? Convert.ToInt64(result) : 0;
     }
+
+    public async Task BulkInsertKeystrokesAsync(IEnumerable<KeystrokeEvent> keystrokes)
+    {
+        if (_connection == null)
+            throw new InvalidOperationException("Database not initialized");
+
+        await using var transaction = await _connection.BeginTransactionAsync();
+        try
+        {
+            foreach (var keystroke in keystrokes)
+            {
+                await InsertKeystrokeAsync(keystroke);
+            }
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+    }
 }

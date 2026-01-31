@@ -291,7 +291,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    private async void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (!_isExiting)
         {
@@ -306,6 +306,12 @@ public partial class MainWindow : Window
         _keyboardHook?.Stop();
         _keyboardHook?.Dispose();
         _ipcClient?.Dispose();
+
+        // Flush any buffered keystrokes before closing
+        if (_databaseManager != null)
+        {
+            await _databaseManager.FlushAsync();
+        }
         _databaseManager?.Dispose();
         _notifyIcon?.Dispose();
     }
